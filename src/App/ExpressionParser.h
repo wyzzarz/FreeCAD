@@ -259,6 +259,7 @@ public:
         EXP,
         FLOOR,
         HYPOT,
+        IMP, // imperial
         LOG,
         LOG10,
         MOD,

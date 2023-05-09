@@ -364,6 +364,20 @@ class SpreadsheetCases(unittest.TestCase):
         self.assertMostlyEqual(sheet.B27, l)
         self.assertTrue(sheet.C27.startswith(u'ERR: Units must be equal'))
         self.assertMostlyEqual(sheet.D27, Units.Quantity("3 mm"))
+        FreeCAD.closeDocument(doc.Name)
+
+    def testImperialFunctions(self):
+        """ Test imperial functions """
+        sheet = self.doc.addObject('Spreadsheet::Sheet','Spreadsheet')
+
+        sheet.set('A28', '=imp(1)') # Imp
+        sheet.set('B28', '=imp(1; 2)')
+        sheet.set('C28', '=imp(1; 2; 3; 4)')
+
+        self.doc.recompute()
+        self.assertMostlyEqual(sheet.A28, Units.Quantity('12 in')) # Imp
+        self.assertMostlyEqual(sheet.B28, Units.Quantity('14 in'))
+        self.assertMostlyEqual(sheet.C28, Units.Quantity('14.75 in'))
 
     def testRelationalOperators(self):
         """ Test relational operators """
