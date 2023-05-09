@@ -16,12 +16,28 @@ and were tried by hand in the installed FreeCAD.
 | Build and install scripts (pixi, Linux) | `contrib/wyzzarz/` | built and installed on Linux |
 | macOS build and install | `contrib/wyzzarz/README.md` ("Build", "Install", "macOS: DMG bundle"), `contrib/wyzzarz/build-freecad.sh`, `contrib/wyzzarz/install-freecad.sh`, `CMakePresets.json` | tested on macOS Apple Silicon |
 | US Tabloid blank TechDraw template | `src/Mod/TechDraw/Templates/ASME/` | added; a page created from it opens in the GUI |
+| `imp()` spreadsheet/expression function | `src/App/Expression.cpp`, `src/App/ExpressionParser.h`, `src/Mod/Spreadsheet/TestSpreadsheet.py` | 5 tests pass |
 
 ### US Tabloid template
 
 `ASME/USTabloid_Landscape_blank.svg`: a blank 431.8 x 279.4 mm (17 x 11 in) TechDraw
 template, next to `USLetter_Landscape_blank.svg`. It is the same size as the existing
 `ASME/ANSIB_Landscape_blank.svg`; this one adds the "USTabloid" name.
+
+### `imp()`: imperial lengths
+
+`imp(feet; inches; numerator; denominator)` returns a length. It takes 1, 2 or 4
+arguments; other counts are not evaluated (the cell keeps the text).
+
+| Expression | Result |
+|---|---|
+| `imp(1)` | 1 ft = 12 in |
+| `imp(1; 2)` | 1 ft 2 in = 14 in |
+| `imp(1; 2; 3; 4)` | 1 ft 2 3/4 in = 14.75 in |
+| `imp(1.5)` | 18 in |
+| `imp(-1; 2)` | -14 in: a negative number of feet makes the whole length negative |
+| `imp(1; -2)` | 10 in: a negative number of inches only affects the inches |
+| `imp(1; 2; 3; 0)` | error: the denominator must not be zero |
 
 ## Build and install
 
@@ -155,6 +171,11 @@ git cherry-pick <the commits listed in Activities below, oldest first>
 ```
 What needed fixing when porting to 1.1.4, and may again:
 - `src/Mod/TechDraw/Templates/`: the US sizes moved into `ASME/`.
+- `src/Mod/Spreadsheet/TestSpreadsheet.py`: upstream splits and reorganises these
+  tests, so the cherry-pick conflicts. Keep upstream's file and re-add the new tests in
+  the `SpreadsheetFunction` class.
+- Then build with `build-freecad.sh` and run
+  `pixi run --as-is build/release/bin/FreeCADCmd -t TestSpreadsheet`.
 
 ## Activities
 
@@ -187,3 +208,17 @@ commit as it was made; the sections above describe the branch as it is now.)
   `DrawSVGTemplate` loads it at 431.8 x 279.4 mm, like `ANSIB_Landscape_blank.svg`; and
   a page created from it opens in the TechDraw workbench. The sheet is blank (the SVG has
   no border or title block). The file dialog itself was not clicked through by hand.
+- **2026-10-07, imperial `imp` expression** (commit "Add support for imperial (imp)
+  expression"): cherry-picked from the fork (originally 2023-05-08). Adds `imp(feet;
+  inches; numerator; denominator)` to spreadsheet/expressions: `imp(1)` is 1 ft,
+  `imp(1; 2)` is 1 ft 2 in, `imp(1; 2; 3; 4)` is 1 ft 2 3/4 in. `Expression.cpp` and
+  `ExpressionParser.h` applied cleanly; two behaviour changes were then made while
+  porting:
+  - A zero denominator (`imp(1; 2; 3; 0)`) is now an error; it used to give `inf`.
+  - A negative number of feet now makes the whole length negative: `imp(-1; 2)` is
+    -14 in (it was -10 in). A negative number of inches still only affects the inches.
+
+  `TestSpreadsheet.py` conflicted because upstream split the old test class; only the
+  new test was kept, as `test_imp` in `SpreadsheetFunction`, and four more were added
+  (`test_imp_values`, `test_imp_zero_denominator`, `test_imp_invalid_argument_count`,
+  `test_imp_contents`). Built on Linux: all 91 tests in `TestSpreadsheet` pass.

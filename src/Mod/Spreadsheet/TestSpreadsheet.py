@@ -668,6 +668,60 @@ class SpreadsheetFunction(unittest.TestCase):
         self.assertEqual(self.sheet.J21, 1)
         self.assertEqual(self.sheet.J22, 0)
 
+    def test_imp(self):
+        """Test the imperial (imp) function: feet, inches, fraction numerator/denominator"""
+        self.sheet.set("A1", "=imp(1)")
+        self.sheet.set("B1", "=imp(1; 2)")
+        self.sheet.set("C1", "=imp(1; 2; 3; 4)")
+
+        self.doc.recompute()
+
+        self.assertMostlyEqual(self.sheet.A1, Units.Quantity("12 in"))
+        self.assertMostlyEqual(self.sheet.B1, Units.Quantity("14 in"))
+        self.assertMostlyEqual(self.sheet.C1, Units.Quantity("14.75 in"))
+
+    def test_imp_values(self):
+        """Test imp with zero, fractional feet, and negative feet"""
+        self.sheet.set("A1", "=imp(0)")
+        self.sheet.set("B1", "=imp(1.5)")
+        self.sheet.set("C1", "=imp(-1; 2)")
+        self.sheet.set("D1", "=imp(-1; 2; 3; 4)")
+        self.sheet.set("E1", "=imp(1; -2)")
+
+        self.doc.recompute()
+
+        self.assertMostlyEqual(self.sheet.A1, Units.Quantity("0 in"))
+        self.assertMostlyEqual(self.sheet.B1, Units.Quantity("18 in"))
+        # The sign of the feet applies to the whole length
+        self.assertMostlyEqual(self.sheet.C1, Units.Quantity("-14 in"))
+        self.assertMostlyEqual(self.sheet.D1, Units.Quantity("-14.75 in"))
+        # A negative number of inches only affects the inches
+        self.assertMostlyEqual(self.sheet.E1, Units.Quantity("10 in"))
+
+    def test_imp_zero_denominator(self):
+        """Test that imp with a zero denominator is an error"""
+        self.sheet.set("A1", "=imp(1; 2; 3; 0)")
+
+        self.doc.recompute()
+
+        self.assertTrue(self.sheet.A1.startswith("ERR: "))
+
+    def test_imp_invalid_argument_count(self):
+        """Test that imp with 0, 3 or 5 arguments is not evaluated"""
+        for i, expr in enumerate(["=imp()", "=imp(1; 2; 3)", "=imp(1; 2; 3; 4; 5)"], 1):
+            self.sheet.set(f"A{i}", expr)
+
+        self.doc.recompute()
+
+        for i in range(1, 4):
+            self.assertNotIsInstance(self.sheet.get(f"A{i}"), Units.Quantity)
+
+    def test_imp_contents(self):
+        """Test that imp is saved as written"""
+        self.sheet.set("A1", "=imp(1; 2; 3; 4)")
+
+        self.assertEqual(self.sheet.getContents("A1"), "=imp(1; 2; 3; 4)")
+
 
 #############################################################################################
 class SpreadsheetCases(unittest.TestCase):
