@@ -1764,6 +1764,10 @@ FunctionExpression::FunctionExpression(const DocumentObject *_owner, Function _f
         if (args.size() < 2 || args.size() > 3)
             EXPR_THROW("Invalid number of arguments: exactly two, or three required.");
         break;
+    case IMP:
+        if (args.size() < 1 || args.size() == 3 || args.size() > 4)
+            EXPR_THROW("Invalid number of arguments: exactly one, two, or four required.");
+        break;
     case STDDEV:
     case SUM:
     case AVERAGE:
@@ -2119,6 +2123,12 @@ Py::Object FunctionExpression::evaluate(const Expression *expr, int f, const std
         e3 = args[2]->getPyValue();
         v3 = pyToQuantity(e3,expr,"Invalid third argument.");
     }
+    Py::Object e4;
+    Quantity v4;
+    if(args.size()>3) {
+        e4 = args[3]->getPyValue();
+        v4 = pyToQuantity(e4,expr,"Invalid fourth argument.");
+    }
 
     double output;
     Unit unit;
@@ -2234,6 +2244,15 @@ Py::Object FunctionExpression::evaluate(const Expression *expr, int f, const std
         }
         unit = v1.getUnit();
         break;
+    case IMP:
+        if (args.size() == 4) {
+            if (e3.isNone())
+                _EXPR_THROW("Invalid third argument.",expr);
+        }
+        unit = Unit::Length;
+        scaler = 25.4;
+        break;
+
     default:
         _EXPR_THROW("Unknown function: " << f,0);
     }
@@ -2300,6 +2319,14 @@ Py::Object FunctionExpression::evaluate(const Expression *expr, int f, const std
     }
     case CATH: {
         output = sqrt(pow(v1.getValue(), 2) - pow(v2.getValue(), 2) - (!e3.isNone() ? pow(v3.getValue(), 2) : 0));
+        break;
+    }
+    case IMP: {
+        double ft =  v1.getValue();
+        double in = e2.isNone() ? 0 : v2.getValue();
+        double frac_n = (e3.isNone() || e4.isNone()) ? 0 : v3.getValue();
+        double frac_d = e4.isNone() ? 1 : v4.getValue();
+        output = ft * 12 + in + frac_n / frac_d;
         break;
     }
     case ROUND:
@@ -2405,6 +2432,8 @@ void FunctionExpression::_toString(std::ostream &ss, bool persistent,int) const
         ss << "hypot("; break;;
     case CATH:
         ss << "cath("; break;;
+    case IMP:
+        ss << "imp("; break;;
     case ROUND:
         ss << "round("; break;;
     case TRUNC:
@@ -3256,6 +3285,7 @@ static void initParser(const App::DocumentObject *owner)
         registered_functions["floor"] = FunctionExpression::FLOOR;
         registered_functions["hypot"] = FunctionExpression::HYPOT;
         registered_functions["cath"] = FunctionExpression::CATH;
+        registered_functions["imp"] = FunctionExpression::IMP;
         registered_functions["list"] = FunctionExpression::LIST;
         registered_functions["tuple"] = FunctionExpression::TUPLE;
         registered_functions["mscale"] = FunctionExpression::MSCALE;

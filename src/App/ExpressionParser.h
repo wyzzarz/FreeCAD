@@ -267,6 +267,7 @@ public:
         FLOOR,
         HYPOT,
         CATH,
+        IMP,
         LIST,
         TUPLE,
         MSCALE, // matrix scale by vector
