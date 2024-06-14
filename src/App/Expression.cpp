@@ -1743,6 +1743,7 @@ FunctionExpression::FunctionExpression(const DocumentObject *_owner, Function _f
     case FLOOR:
     case HIDDENREF:
     case HREF:
+    case IMPSTR:
     case LOG:
     case LOG10:
     case MINVERT:
@@ -2445,6 +2446,40 @@ Py::Object FunctionExpression::evaluate(const Expression *expr, int f, const std
         unit = Unit::Length;
         scaler = 25.4;
         break;
+    case IMPSTR:
+        if (v1.getUnit() == Unit::Length) {
+            // show length as [feet]' [inches]" + [fraction]"
+            double mm = v1.getValue();
+            double total_inches = round((mm / 25.4) * 32) / 32.0;
+            int feet = static_cast<int>(total_inches / 12);
+            int inches = static_cast<int>(total_inches - feet * 12);
+            double fraction = total_inches - feet * 12 - inches;
+            std::string str;
+            if (feet > 0) {
+                str += std::to_string(feet) + "'";
+            }
+            if (inches > 0) {
+                if (str.length() > 0) {
+                    str += " ";
+                }
+                str += std::to_string(inches) + "\"";
+            }
+            if (fraction > 0) {
+                int numerator = fraction * 32;
+                int denominator = 32;
+                while (numerator % 2 == 0) {
+                    numerator /= 2;
+                    denominator /= 2;
+                }
+                if (str.length() > 0) {
+                    str += " + ";
+                }
+                str += std::to_string(numerator) + "/" + std::to_string(denominator) + "\"";
+            }
+            return Py::String(str);
+        } else {
+            return Py::String(e1.as_string());
+        }
     case TRANSLATIONM:
         if (v1.isDimensionlessOrUnit(Unit::Length) && v2.isDimensionlessOrUnit(Unit::Length) && v3.isDimensionlessOrUnit(Unit::Length))
             break;
@@ -2629,6 +2664,8 @@ void FunctionExpression::_toString(std::ostream &ss, bool persistent,int) const
         ss << "hypot("; break;;
     case IMP:
         ss << "imp("; break;;
+    case IMPSTR:
+        ss << "impstr("; break;;
     case LOG:
         ss << "log("; break;;
     case LOG10:
@@ -3513,6 +3550,7 @@ static void initParser(const App::DocumentObject *owner)
         registered_functions["floor"] = FunctionExpression::FLOOR;
         registered_functions["hypot"] = FunctionExpression::HYPOT;
         registered_functions["imp"] = FunctionExpression::IMP;
+        registered_functions["impstr"] = FunctionExpression::IMPSTR;
         registered_functions["log"] = FunctionExpression::LOG;
         registered_functions["log10"] = FunctionExpression::LOG10;
         registered_functions["mod"] = FunctionExpression::MOD;

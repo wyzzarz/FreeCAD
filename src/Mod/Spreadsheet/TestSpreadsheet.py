@@ -373,11 +373,17 @@ class SpreadsheetCases(unittest.TestCase):
         sheet.set('A28', '=imp(1)') # Imp
         sheet.set('B28', '=imp(1; 2)')
         sheet.set('C28', '=imp(1; 2; 3; 4)')
+        sheet.set('A29', '=impstr(A28)') # ImpStr
+        sheet.set('B29', '=impstr(B28)')
+        sheet.set('C29', '=impstr(C28)')
 
         self.doc.recompute()
         self.assertMostlyEqual(sheet.A28, Units.Quantity('12 in')) # Imp
         self.assertMostlyEqual(sheet.B28, Units.Quantity('14 in'))
         self.assertMostlyEqual(sheet.C28, Units.Quantity('14.75 in'))
+        self.assertEqual(sheet.A29, '1\'') # ImpStr
+        self.assertEqual(sheet.B29, '1\' 2"')
+        self.assertEqual(sheet.C29, '1\' 2" + 3/4"')
 
     def testRelationalOperators(self):
         """ Test relational operators """

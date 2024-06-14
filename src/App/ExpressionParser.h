@@ -290,6 +290,7 @@ public:
         ROTATIONX, // Create x-axis rotation object.
         ROTATIONY, // Create y-axis rotation object.
         ROTATIONZ, // Create z-axis rotation object.
+        IMPSTR, // Create string from imperial
         STR, // stringify
         TRANSLATIONM, // Create translation matrix object.
         TUPLE, // Create Python tuple.
