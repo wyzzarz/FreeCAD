@@ -5,49 +5,53 @@ Personal fork of [FreeCAD](https://github.com/FreeCAD/FreeCAD). The branch
 is part of upstream FreeCAD. This folder (`contrib/wyzzarz/`) holds the build and
 install scripts and this README.
 
-Built and tested on Linux Mint 22.3 (Ubuntu 24.04 base), x86_64. Not tried on macOS
-or Windows.
+Built and tested on Linux Mint 22.3 (Ubuntu 24.04 base), x86_64, and on macOS Apple
+Silicon (osx-arm64). Not tried on Windows. The new functions are tested by unit tests
+and were tried by hand in the installed FreeCAD.
 
 ## What the fork includes
 
 | Change | Where | Status |
 |---|---|---|
 | Build and install scripts (pixi, Linux) | `contrib/wyzzarz/` | built and installed on Linux |
+| macOS build and install | `contrib/wyzzarz/README.md` ("Build", "Install", "macOS: DMG bundle"), `contrib/wyzzarz/build-freecad.sh`, `contrib/wyzzarz/install-freecad.sh`, `CMakePresets.json` | tested on macOS Apple Silicon |
 
 ## Build and install
 
-### Linux: build
+### Build (Linux and macOS)
 
 **Goal:** compile a release build of this checkout. It does not touch any
 installed copy of FreeCAD.
 
-**Prerequisite:** pixi in `~/.pixi/bin/pixi`. Install it with the official
-installer from https://pixi.sh/install.sh (`PIXI_NO_PATH_UPDATE=1` leaves shell
-config alone; the scripts use the full path).
-
-**Run:**
+**Run** (`build-freecad.sh` can be run from any directory; bare `pixi run` commands
+require the checkout root, where `pixi.toml` lives):
 ```bash
-bash contrib/wyzzarz/build-freecad.sh [jobs]   # default 8 jobs
+bash /path/to/freecad_source/contrib/wyzzarz/build-freecad.sh [jobs]   # default 8 jobs
 ```
 It runs, in order:
-1. `pixi install`: the conda-forge dependencies into `.pixi/` (~5.5 GB).
-2. `pixi run configure-release`: CMake configure (also updates the git submodules).
-3. `pixi run build-release`: the compile.
+1. Installs pixi into `~/.pixi/` if not already present.
+2. `pixi install`: the conda-forge dependencies into `.pixi/` (~5.5 GB).
+3. `pixi run configure-release`: CMake configure (also updates the git submodules).
+4. `pixi run build-release`: the compile.
 
-**Result:** the build is in `build/release/` (~1.3 GB). Try it without installing:
+**Result:** the build is in `build/release/` (~1.3 GB). Try it without installing
+(run from the checkout root, where `pixi.toml` lives):
 ```bash
+cd /path/to/freecad_source
 pixi run freecad-release
 ```
 
-**Time:** the first full build took ~95 min with 8 jobs (6745 steps) on 12
-threads / 16 GB. Re-running is incremental: only changed files recompile, so a
-typical edit takes seconds to a few minutes. A full rebuild happens only if
-`build/release` is deleted, CMake options change, or core headers change.
-ccache is in the pixi env and used automatically (`FREECAD_USE_CCACHE` is ON):
-the cache is `~/.cache/ccache` (5 GB limit; `pixi run --as-is ccache -s` for
-stats), so a from-scratch rebuild of unchanged code should take minutes.
+**Time:** the first full build took ~95 min with 8 jobs on Linux (6752 steps, 12
+threads / 16 GB) and ~49 min on macOS Apple Silicon (M-series). Re-running is
+incremental: only changed files recompile, so a typical edit takes seconds to a
+few minutes. A full rebuild happens only if `build/release` is deleted, CMake
+options change, or core headers change. ccache is in the pixi env and used
+automatically (`FREECAD_USE_CCACHE` is ON): the cache is `~/.cache/ccache`
+(5 GB limit; `pixi run --as-is ccache -s` for stats), so a from-scratch rebuild
+of unchanged code should take minutes.
 
-**Dev workflow:** edit, `build-freecad.sh`, try with `pixi run freecad-release`.
+**Dev workflow:** edit, `build-freecad.sh`, try with `pixi run freecad-release`
+(from the checkout root).
 Install (below) only builds you have tried.
 
 **Why pixi:** FreeCAD 1.1.x needs Qt 6.8, OCCT 7.8 and a recent compiler, which
@@ -59,12 +63,17 @@ and `pixi.lock` pins the exact versions; `pixi run <cmd>` runs a command inside
 the environment. The pixi binary is per user (`~/.pixi`), the environment per
 project.
 
-### Linux: install
+See also [Compile on macOS](https://wiki.freecad.org/Compile_on_MacOS).
 
-**Goal:** use the build day to day: app-menu entry, a `freecad` command, and
-`.FCStd` files that open with FreeCAD.
+### Install (Linux and macOS)
 
-**Run:**
+**Goal:** make the build convenient to launch day to day. This is **not a
+standalone installation** — the launchers and `.app` are pointers back to this
+checkout and its pixi environment; moving or deleting either breaks them. For a
+self-contained package that has no dependency on the checkout, use the
+Linux: AppImage or macOS: DMG bundle routes instead.
+
+**Run** (from the checkout root, where `pixi.toml` lives):
 ```bash
 bash contrib/wyzzarz/install-freecad.sh
 ```
@@ -72,19 +81,22 @@ bash contrib/wyzzarz/install-freecad.sh
 2. Runs `pixi run --as-is install-release` (`cmake --install`): copies the build
    into the pixi env `.pixi/envs/default/`. **This overwrites the currently
    installed copy.**
-3. Deploys per user under `~/.local` (no sudo, nothing system-wide): launchers
-   `~/.local/bin/freecad` and `freecadcmd` (they run the pixi env's FreeCAD via
-   `pixi run --as-is`), the app-menu entry, icons, and MIME types.
+3. Deploys launchers `~/.local/bin/freecad` and `freecadcmd` (no sudo, nothing
+   system-wide); they run the pixi env's FreeCAD via `pixi run --as-is`.
+4. **Linux:** app-menu entry (`.desktop`), icons, and MIME types under `~/.local`.
+   **macOS:** `/Applications/FreeCAD (WyzzarZ).app` — a launcher-backed stub with
+   the FreeCAD icon; opens from Spotlight, Launchpad and the Dock.
 
-**Result:** FreeCAD starts from the app menu, or with `freecad` (needs
-`~/.local/bin` on PATH).
+**Result:** `freecad` in a terminal, or from the app menu (Linux) / `/Applications`
+(macOS). `~/.local/bin` must be on PATH (it is by default on Mint; on macOS add
+`export PATH="$HOME/.local/bin:$PATH"` to `~/.zshrc`).
 
 - **Update after a rebuild:** run `install-freecad.sh` again.
 - **Remove the deploy:** `bash contrib/wyzzarz/install-freecad.sh --uninstall`
-  removes launchers, menu entry, icons and MIME; the installed copy in the pixi
-  env stays.
-- **Do not move or delete this checkout:** the launchers point at it, and at
-  its `.pixi` environment.
+  removes launchers, menu entry, icons, MIME and the `.app`; the installed copy
+  in the pixi env stays.
+- **Do not move or delete this checkout:** the launchers and `.app` point at it,
+  and at its `.pixi` environment.
 - **What can break the installed copy:** installing a bad build; a pixi
   dependency change (a plain `pixi run` / `pixi install` after switching to a
   branch with a different `pixi.toml`/`pixi.lock` updates the shared env; the
@@ -111,6 +123,21 @@ x86_64 Linux machine and run, with no install.
 - Flatpak is not pursued: it needs a manifest built against a Flatpak runtime
   (not pixi), and nothing in this checkout makes one.
 
+### macOS: DMG bundle
+
+For a distributable, self-contained DMG (the macOS counterpart of the AppImage),
+use `package/rattler-build/osx/create_bundle.sh`:
+```bash
+cd package/rattler-build && BUILD_TAG=1.1.4-wyzzarz pixi run -e package create_bundle
+```
+- **Separate from the dev flow:** it does its own full compile and cannot reuse
+  `build/release`. Keep the dev setup for incremental builds.
+- The `install-freecad.sh` `.app` is a dev-install launcher stub, not a
+  self-contained bundle.
+- The earlier conda/mambaforge steps (`conda devenv`, `-DBUILD_QT5` and so on) no
+  longer work in 1.1.4. They are in the commit "Update README for compiling for
+  MacOS" (`f110d93939`) on the fork's `feat/wyzzarz` branch.
+
 ## Moving to a new release
 
 The changes are kept as commits so they can be cherry-picked onto the next release:
@@ -131,3 +158,12 @@ commit as it was made; the sections above describe the branch as it is now.)
   `build-freecad.sh`, `install-freecad.sh` and this README. First full pixi release
   build of 1.1.4 on Linux Mint 22.3 took ~95 min with 8 jobs; the install ran and
   `freecad` starts from the app menu.
+- **2026-10-08, macOS build and install** (commit "Add macOS build and install support
+  (contrib/wyzzarz)"): based on the fork's commit "Update README for compiling for MacOS"
+  (`f110d93939`, originally 2024-06-13), which edited the top-level `README.md`. Its steps
+  used conda/mambaforge (`conda devenv` and the `conda/` environment files, `-DBUILD_QT5`,
+  `-DWITH_PYTHON3`, `-std=c++14`), which no longer exist in 1.1.4, so it was not
+  cherry-picked as it was. The pixi steps were written in a "macOS: build" section;
+  `build-freecad.sh` and `install-freecad.sh` were then extended to cover macOS (tested on
+  Apple Silicon), and the build/install sections were merged into "Build (Linux and macOS)"
+  and "Install (Linux and macOS)".

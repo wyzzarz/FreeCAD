@@ -175,7 +175,7 @@
           },
           "FREECAD_3DCONNEXION_SUPPORT": {
             "type": "STRING",
-            "value": "Both"
+            "value": "None"
           },
           "OCC_INCLUDE_DIR": {
             "type": "FILEPATH",

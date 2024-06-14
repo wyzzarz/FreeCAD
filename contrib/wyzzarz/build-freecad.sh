@@ -9,6 +9,12 @@ export PATH="$HOME/.pixi/bin:$PATH"
 cd "$(dirname "$0")/../.."
 export CMAKE_BUILD_PARALLEL_LEVEL="$JOBS"
 
+if ! command -v pixi &>/dev/null; then
+    echo "== $(date) pixi not found — installing via https://pixi.sh/install.sh"
+    curl -fsSL https://pixi.sh/install.sh | sh
+    export PATH="$HOME/.pixi/bin:$PATH"
+fi
+
 echo "== $(date) pixi install (conda-forge deps)"
 pixi install
 echo "== $(date) configure-release (also updates submodules)"

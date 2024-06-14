@@ -3,19 +3,22 @@
 # install-freecad.sh
 #
 # Why:  Install the FreeCAD built by build-freecad.sh and make it usable like
-#       a normal Linux app: launch from the app menu, a `freecad` command, and
-#       open .FCStd files by double-click. Kept separate from the build so a
+#       a normal app: a `freecad` command in ~/.local/bin, and on Linux an app
+#       menu entry, .FCStd double-click, icons and MIME types; on macOS a
+#       ~/Applications/FreeCAD.app stub. Kept separate from the build so a
 #       rebuild/dev build never changes the installed copy until you run this.
 # What: 1. checks the release build exists (build/release)
 #       2. installs it into the pixi env (`pixi run install-release`, i.e.
 #          cmake --install): this OVERWRITES the currently installed copy
 #       3. per-user deploy under ~/.local (no sudo, nothing system-wide):
 #          launchers ~/.local/bin/freecad and freecadcmd (run the pixi env's
-#          FreeCAD so Qt/Python paths are right), app-menu entry, icons,
-#          MIME types (.FCStd etc.), then refreshes the caches
+#          FreeCAD so Qt/Python paths are right)
+#       4. Linux: app-menu entry, icons, MIME types (.FCStd etc.),
+#          then refreshes the caches
+#          macOS: ~/Applications/FreeCAD.app stub
 #       Re-runnable. `--uninstall` removes only the deploy (launchers, menu
-#       entry, icons, MIME); the installed copy in the pixi env is left alone.
-#       The files point at the checkout, so don't move/delete this checkout.
+#       entry, icons, MIME, .app); the installed copy in the pixi env is left
+#       alone. The files point at the checkout, so don't move/delete it.
 #
 # Log:     build/logs/install-freecad.log (in the git-ignored build/; local only)
 # Run:     bash <path-to-this-script> [--uninstall]
@@ -40,6 +43,7 @@ trap 'log "Finished with exit code $?"' EXIT
 log "===== Start: $SCRIPT_NAME (user: $USER, host: $(hostname)) ====="
 
 # ---------------------------------------------------------------------
+PLATFORM="$(uname -s)"   # Linux or Darwin
 FC_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 ENV_DIR="$FC_DIR/.pixi/envs/default"
 PIXI="$HOME/.pixi/bin/pixi"
@@ -48,8 +52,9 @@ SHARE="$HOME/.local/share"
 APP_ID="org.freecad.FreeCAD"
 DESKTOP="$SHARE/applications/$APP_ID.desktop"
 MIME_XML="$SHARE/mime/packages/$APP_ID.xml"
+APP_BUNDLE="/Applications/FreeCAD (WyzzarZ).app"
 
-refresh_caches() {
+refresh_linux_caches() {
     step "Refresh desktop, MIME and icon caches"
     update-desktop-database "$SHARE/applications" || true
     update-mime-database "$SHARE/mime" || true
@@ -58,9 +63,14 @@ refresh_caches() {
 
 if [ "${1:-}" = "--uninstall" ]; then
     step "Remove FreeCAD desktop deploy (installed copy in the pixi env is kept)"
-    rm -fv "$BIN_DIR/freecad" "$BIN_DIR/freecadcmd" "$DESKTOP" "$MIME_XML"
-    find "$SHARE/icons/hicolor" -name "$APP_ID.*" -print -delete 2>/dev/null || true
-    refresh_caches
+    rm -fv "$BIN_DIR/freecad" "$BIN_DIR/freecadcmd"
+    if [ "$PLATFORM" = "Linux" ]; then
+        rm -fv "$DESKTOP" "$MIME_XML"
+        find "$SHARE/icons/hicolor" -name "$APP_ID.*" -print -delete 2>/dev/null || true
+        refresh_linux_caches
+    elif [ "$PLATFORM" = "Darwin" ]; then
+        rm -rfv "$APP_BUNDLE"
+    fi
     log "===== Done (uninstalled): $SCRIPT_NAME ====="
     exit 0
 fi
@@ -78,7 +88,9 @@ rm -f "$INSTALL_OUT"
 
 step "Check the installed copy"
 [ -x "$ENV_DIR/bin/FreeCAD" ] || { log "$ENV_DIR/bin/FreeCAD missing (run build-freecad.sh first)"; exit 1; }
-[ -f "$ENV_DIR/share/applications/$APP_ID.desktop" ] || { log "desktop file missing in env"; exit 1; }
+if [ "$PLATFORM" = "Linux" ]; then
+    [ -f "$ENV_DIR/share/applications/$APP_ID.desktop" ] || { log "desktop file missing in env"; exit 1; }
+fi
 
 step "Write launchers in $BIN_DIR"
 mkdir -p "$BIN_DIR"
@@ -93,29 +105,89 @@ LAUNCHER
     log "wrote $BIN_DIR/$name"
 done
 
-step "Install app-menu entry"
-mkdir -p "$SHARE/applications"
-sed "s|^Exec=FreeCAD |Exec=$BIN_DIR/freecad |" \
-    "$ENV_DIR/share/applications/$APP_ID.desktop" > "$DESKTOP"
-grep -E '^Exec=' "$DESKTOP"
+if [ "$PLATFORM" = "Linux" ]; then
+    step "Install app-menu entry"
+    mkdir -p "$SHARE/applications"
+    sed "s|^Exec=FreeCAD |Exec=$BIN_DIR/freecad |" \
+        "$ENV_DIR/share/applications/$APP_ID.desktop" > "$DESKTOP"
+    grep -E '^Exec=' "$DESKTOP"
 
-step "Install icons"
-(cd "$ENV_DIR/share/icons" && find hicolor -name "$APP_ID.*" -print0) |
-while IFS= read -r -d '' f; do
-    mkdir -p "$SHARE/icons/$(dirname "$f")"
-    cp -v "$ENV_DIR/share/icons/$f" "$SHARE/icons/$f"
-done
+    step "Install icons"
+    (cd "$ENV_DIR/share/icons" && find hicolor -name "$APP_ID.*" -print0) |
+    while IFS= read -r -d '' f; do
+        mkdir -p "$SHARE/icons/$(dirname "$f")"
+        cp -v "$ENV_DIR/share/icons/$f" "$SHARE/icons/$f"
+    done
 
-step "Install MIME types (.FCStd etc.)"
-mkdir -p "$SHARE/mime/packages"
-cp -v "$ENV_DIR/share/mime/packages/$APP_ID.xml" "$MIME_XML"
+    step "Install MIME types (.FCStd etc.)"
+    mkdir -p "$SHARE/mime/packages"
+    cp -v "$ENV_DIR/share/mime/packages/$APP_ID.xml" "$MIME_XML"
 
-refresh_caches
+    refresh_linux_caches
+
+elif [ "$PLATFORM" = "Darwin" ]; then
+    step "Create $APP_BUNDLE"
+    mkdir -p "$APP_BUNDLE/Contents/MacOS"
+    mkdir -p "$APP_BUNDLE/Contents/Resources"
+    # Launcher script: runs FreeCAD through pixi so the env's Qt/Python paths are set.
+    cat > "$APP_BUNDLE/Contents/MacOS/FreeCAD" <<APPLAUNCHER
+#!/usr/bin/env bash
+exec "$PIXI" run --as-is --manifest-path "$FC_DIR/pixi.toml" FreeCAD "\$@"
+APPLAUNCHER
+    chmod +x "$APP_BUNDLE/Contents/MacOS/FreeCAD"
+    # Copy app icon.
+    ICON_SRC="$FC_DIR/package/rattler-build/osx/resources/freecad.icns"
+    [ -f "$ICON_SRC" ] && cp "$ICON_SRC" "$APP_BUNDLE/Contents/Resources/freecad.icns"
+    cat > "$APP_BUNDLE/Contents/Info.plist" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleExecutable</key>
+    <string>FreeCAD</string>
+    <key>CFBundleIconFile</key>
+    <string>freecad</string>
+    <key>CFBundleIdentifier</key>
+    <string>org.freecad.FreeCAD</string>
+    <key>CFBundleName</key>
+    <string>FreeCAD (WyzzarZ)</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSRequiresAquaSystemAppearance</key>
+    <false/>
+    <key>CFBundleDocumentTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>CFBundleTypeExtensions</key>
+            <array>
+                <string>FCStd</string>
+                <string>FCMat</string>
+                <string>FCParam</string>
+            </array>
+            <key>LSIsAppleDefaultForType</key>
+            <true/>
+        </dict>
+    </array>
+</dict>
+</plist>
+PLIST
+    log "wrote $APP_BUNDLE"
+fi
 
 step "Check $BIN_DIR is on PATH"
 case ":$PATH:" in
     *":$BIN_DIR:"*) log "yes" ;;
-    *) log "NOT on PATH in this shell. Log out/in (Mint adds ~/.local/bin if it exists) or run $BIN_DIR/freecad directly." ;;
+    *)
+        if [ "$PLATFORM" = "Darwin" ]; then
+            log "NOT on PATH in this shell. Add to ~/.zshrc (or ~/.bash_profile): export PATH=\"$BIN_DIR:\$PATH\""
+        else
+            log "NOT on PATH in this shell. Log out/in (Mint adds ~/.local/bin if it exists) or run $BIN_DIR/freecad directly."
+        fi
+        ;;
 esac
 
 log "===== Done: $SCRIPT_NAME ====="
