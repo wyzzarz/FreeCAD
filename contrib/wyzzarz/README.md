@@ -17,6 +17,7 @@ and were tried by hand in the installed FreeCAD.
 | macOS build and install | `contrib/wyzzarz/README.md` ("Build", "Install", "macOS: DMG bundle"), `contrib/wyzzarz/build-freecad.sh`, `contrib/wyzzarz/install-freecad.sh`, `CMakePresets.json` | tested on macOS Apple Silicon |
 | US Tabloid blank TechDraw template | `src/Mod/TechDraw/Templates/ASME/` | added; a page created from it opens in the GUI |
 | `imp()` spreadsheet/expression function | `src/App/Expression.cpp`, `src/App/ExpressionParser.h`, `src/Mod/Spreadsheet/TestSpreadsheet.py` | 5 tests pass |
+| `impstr()` spreadsheet/expression function | `src/App/Expression.cpp`, `src/App/ExpressionParser.h`, `src/Mod/Spreadsheet/TestSpreadsheet.py` | 4 tests pass |
 
 ### US Tabloid template
 
@@ -38,6 +39,22 @@ arguments; other counts are not evaluated (the cell keeps the text).
 | `imp(-1; 2)` | -14 in: a negative number of feet makes the whole length negative |
 | `imp(1; -2)` | 10 in: a negative number of inches only affects the inches |
 | `imp(1; 2; 3; 0)` | error: the denominator must not be zero |
+
+### `impstr()`: a length as text
+
+`impstr(length)` shows a length as feet, inches and an inch fraction, rounded to the
+nearest 1/32 in. Zero is `0"`. A value without a length unit is returned as a string
+unchanged.
+
+| Expression | Result |
+|---|---|
+| `impstr(imp(1))` | `1'` |
+| `impstr(imp(1; 2))` | `1' 2"` |
+| `impstr(imp(1; 2; 3; 4))` | `1' 2" + 3/4"` |
+| `impstr(imp(1.5))` | `1' 6"` |
+| `impstr(imp(-1; 2))` | `-1' 2"`: a negative length gets a leading minus |
+| `impstr(imp(1; -2))` | `10"` |
+| `impstr(imp(1; 2; 3; 0))` | error: the denominator must not be zero (the `imp` error is passed through) |
 
 ## Build and install
 
@@ -174,6 +191,8 @@ What needed fixing when porting to 1.1.4, and may again:
 - `src/Mod/Spreadsheet/TestSpreadsheet.py`: upstream splits and reorganises these
   tests, so the cherry-pick conflicts. Keep upstream's file and re-add the new tests in
   the `SpreadsheetFunction` class.
+- `src/App/ExpressionParser.h`: the function enum is reformatted from time to time;
+  keep upstream's layout and re-add `IMP` and `IMPSTR`.
 - Then build with `build-freecad.sh` and run
   `pixi run --as-is build/release/bin/FreeCADCmd -t TestSpreadsheet`.
 
@@ -222,3 +241,17 @@ commit as it was made; the sections above describe the branch as it is now.)
   new test was kept, as `test_imp` in `SpreadsheetFunction`, and four more were added
   (`test_imp_values`, `test_imp_zero_denominator`, `test_imp_invalid_argument_count`,
   `test_imp_contents`). Built on Linux: all 91 tests in `TestSpreadsheet` pass.
+- **2026-10-07, `impstr` expression** (commit "Display feet, inches, inch fraction using
+  impstr expression"): cherry-picked from the fork (originally 2024-06-14). Adds
+  `impstr(length)`, which shows a length as feet, inches and an inch fraction rounded to
+  1/32 in, for example `1' 2" + 3/4"`; a value without a length unit is returned as a
+  string unchanged. Changes made while porting:
+  - `ExpressionParser.h` conflicted only because upstream realigned the comments in the
+    enum; upstream's layout was kept and `IMPSTR` added to it.
+  - Zero now gives `0"` (it gave an empty string) and negative lengths get a leading `-`,
+    for example `-1' 2"` (they gave an empty string), to match `imp`.
+  - `TestSpreadsheet.py` conflicted as for `imp`; the original assertions were replaced
+    by four tests in `SpreadsheetFunction` (`test_impstr`, `test_impstr_parts`,
+    `test_impstr_zero_and_negative`, `test_impstr_not_a_length`).
+
+  Built on Linux: all 95 tests in `TestSpreadsheet` pass.

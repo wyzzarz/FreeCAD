@@ -722,6 +722,60 @@ class SpreadsheetFunction(unittest.TestCase):
 
         self.assertEqual(self.sheet.getContents("A1"), "=imp(1; 2; 3; 4)")
 
+    def test_impstr(self):
+        """Test impstr: a length as feet, inches and an inch fraction"""
+        self.sheet.set("A1", "=imp(1)")
+        self.sheet.set("B1", "=imp(1; 2)")
+        self.sheet.set("C1", "=imp(1; 2; 3; 4)")
+        self.sheet.set("A2", "=impstr(A1)")
+        self.sheet.set("B2", "=impstr(B1)")
+        self.sheet.set("C2", "=impstr(C1)")
+
+        self.doc.recompute()
+
+        self.assertEqual(self.sheet.A2, "1'")
+        self.assertEqual(self.sheet.B2, "1' 2\"")
+        self.assertEqual(self.sheet.C2, "1' 2\" + 3/4\"")
+
+    def test_impstr_parts(self):
+        """Test impstr with only inches, only a fraction, and rounding to 1/32 in"""
+        self.sheet.set("A1", "=impstr(imp(0; 5))")
+        self.sheet.set("B1", "=impstr(imp(0; 0; 1; 2))")
+        self.sheet.set("C1", "=impstr(imp(2; 0; 1; 8))")
+        self.sheet.set("D1", "=impstr(1 mm)")
+        self.sheet.set("E1", "=impstr(0.3 mm)")
+
+        self.doc.recompute()
+
+        self.assertEqual(self.sheet.A1, '5"')
+        self.assertEqual(self.sheet.B1, '1/2"')
+        self.assertEqual(self.sheet.C1, "2' + 1/8\"")
+        # 1 mm is 0.039 in, which rounds to 1/32 in; 0.3 mm rounds to nothing
+        self.assertEqual(self.sheet.D1, '1/32"')
+        self.assertEqual(self.sheet.E1, '0"')
+
+    def test_impstr_zero_and_negative(self):
+        """Test impstr with zero and negative lengths"""
+        self.sheet.set("A1", "=impstr(imp(0))")
+        self.sheet.set("B1", "=impstr(imp(-1; 2))")
+        self.sheet.set("C1", "=impstr(imp(-1; 2; 3; 4))")
+        self.sheet.set("D1", "=impstr(imp(0; -5))")
+
+        self.doc.recompute()
+
+        self.assertEqual(self.sheet.A1, '0"')
+        self.assertEqual(self.sheet.B1, "-1' 2\"")
+        self.assertEqual(self.sheet.C1, "-1' 2\" + 3/4\"")
+        self.assertEqual(self.sheet.D1, '-5"')
+
+    def test_impstr_not_a_length(self):
+        """Test that impstr leaves a value without a length unit as a string"""
+        self.sheet.set("A1", "=impstr(5)")
+
+        self.doc.recompute()
+
+        self.assertEqual(self.sheet.A1, "5")
+
 
 #############################################################################################
 class SpreadsheetCases(unittest.TestCase):

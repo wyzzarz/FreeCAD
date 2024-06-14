@@ -357,6 +357,7 @@ public:
         ROTATIONX,     // Create x-axis rotation object.
         ROTATIONY,     // Create y-axis rotation object.
         ROTATIONZ,     // Create z-axis rotation object.
+        IMPSTR,        // Create string from imperial
         STR,           // stringify
         PARSEQUANT,    // parse string quantity
         TRANSLATIONM,  // Create translation matrix object.
