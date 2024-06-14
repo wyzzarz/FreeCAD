@@ -72,6 +72,54 @@ The pages below contain up-to-date build instructions:
 - [Cygwin](https://wiki.freecad.org/Compile_on_Cygwin)
 - [MinGW](https://wiki.freecad.org/Compile_on_MinGW)
 
+Compiling for Mac
+-----------------
+
+For further information refer to [Conda/Mambaforge](https://github.com/oursland/FreeCAD-Build-Notes?tab=readme-ov-file) and [Compiling MacOS](https://wiki.freecad.org/Compile_on_MacOS).
+
+```
+# install mambaforge
+brew install mambaforge
+conda init "$(basename "${SHELL}")"
+source ~/.zshrc
+
+# create a directory for FreeCAD development
+mkdir FreeCAD
+cd FreeCAD
+
+# clone FreeCAD
+git clone https://github.com/FreeCAD/FreeCAD.git freecad-source
+
+# install Conda
+cd freecad-source
+git submodule update --init
+conda env create -p .conda/freecad -f conda/conda-env.yaml
+conda config --add envs_dirs $CONDA_PREFIX/envs
+conda config --add envs_dirs $(pwd)/.conda
+conda config --set env_prompt '({name})'
+conda devenv -f conda/environment.devenv.yml
+conda activate freecad
+
+# setup build
+mkdir ../FreeCAD/build-release
+cd ../FreeCAD/build-release
+cmake \
+  -DCMAKE_BUILD_TYPE="Release"   \
+  -DBUILD_QT5=1                  \
+  -DWITH_PYTHON3=1               \
+  -DFREECAD_USE_EXTERNAL_KDL=1   \
+  -DCMAKE_CXX_FLAGS='-std=c++14' \
+  -DBUILD_FEM_NETGEN=1           \
+  -DFREECAD_CREATE_MAC_APP=1     \
+  -DCMAKE_INSTALL_PREFIX="./.."  \
+  ../freecad-source
+
+# peform build
+make -j8
+
+# install build
+sudo make -j8 install
+```
 
 Reporting Issues
 ---------
