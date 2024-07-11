@@ -15,6 +15,13 @@ and were tried by hand in the installed FreeCAD.
 |---|---|---|
 | Build and install scripts (pixi, Linux) | `contrib/wyzzarz/` | built and installed on Linux |
 | macOS build and install | `contrib/wyzzarz/README.md` ("Build", "Install", "macOS: DMG bundle"), `contrib/wyzzarz/build-freecad.sh`, `contrib/wyzzarz/install-freecad.sh`, `CMakePresets.json` | tested on macOS Apple Silicon |
+| US Tabloid blank TechDraw template | `src/Mod/TechDraw/Templates/ASME/` | added; a page created from it opens in the GUI |
+
+### US Tabloid template
+
+`ASME/USTabloid_Landscape_blank.svg`: a blank 431.8 x 279.4 mm (17 x 11 in) TechDraw
+template, next to `USLetter_Landscape_blank.svg`. It is the same size as the existing
+`ASME/ANSIB_Landscape_blank.svg`; this one adds the "USTabloid" name.
 
 ## Build and install
 
@@ -146,6 +153,8 @@ The changes are kept as commits so they can be cherry-picked onto the next relea
 git switch -c wyzzarz/<new version> <new version tag>
 git cherry-pick <the commits listed in Activities below, oldest first>
 ```
+What needed fixing when porting to 1.1.4, and may again:
+- `src/Mod/TechDraw/Templates/`: the US sizes moved into `ASME/`.
 
 ## Activities
 
@@ -167,3 +176,14 @@ commit as it was made; the sections above describe the branch as it is now.)
   `build-freecad.sh` and `install-freecad.sh` were then extended to cover macOS (tested on
   Apple Silicon), and the build/install sections were merged into "Build (Linux and macOS)"
   and "Install (Linux and macOS)".
+- **2026-10-07, US Tabloid template** (commit "Add Tabloid templates"): cherry-picked from
+  the fork (originally 2024-07-11). Adds `USTabloid_Landscape_blank.svg`, a 431.8 x 279.4 mm
+  (17 x 11 in) blank TechDraw template. In 1.1.4 the US sizes live in
+  `src/Mod/TechDraw/Templates/ASME/`, so it was placed there next to
+  `USLetter_Landscape_blank.svg` (the original commit had it in `Templates/`). Same size as
+  the existing `ASME/ANSIB_Landscape_blank.svg`; this one only adds the "USTabloid" name.
+  Checked on Linux with the build: the file is in the templates folder that TechDraw
+  "Insert Page using Template" opens (`share/Mod/TechDraw/Templates/ASME/`); a
+  `DrawSVGTemplate` loads it at 431.8 x 279.4 mm, like `ANSIB_Landscape_blank.svg`; and
+  a page created from it opens in the TechDraw workbench. The sheet is blank (the SVG has
+  no border or title block). The file dialog itself was not clicked through by hand.
